@@ -6,8 +6,8 @@ import (
 	"os"
 	"runtime/pprof"
 
-	"github.com/go-code/ml/ftrl"
-	ml "github.com/go-code/ml/utils"
+	"github.com/go-code/goFTRL/ftrl"
+	ml "github.com/go-code/goFTRL/utils"
 )
 
 const (
@@ -15,6 +15,10 @@ const (
 )
 
 func main() {
+	// TODO add flag if to read binary dataset
+	// TODO add flag read fixed number of rows
+	// TODO enable profile if flag set
+
 	train := flag.String("-t", "./files/train_dataset.svm", "path to TRAIN data")
 	trainW := flag.String("-tw", "./files/weights_train.csv", "path to TRAIN weights file")
 	trainF := flag.String("-tf", "", "path to TRAIN feature names")
@@ -39,17 +43,6 @@ func main() {
 		log.Println("pprof enabled!")
 	}
 
-	f, err := os.Create("bench.pprof")
-	if err != nil {
-		log.Fatal("could not create CPU profile: ", err)
-	}
-	defer f.Close()
-
-	if err := pprof.StartCPUProfile(f); err != nil {
-		log.Fatal("could not start CPU profile: ", err)
-	}
-	defer pprof.StopCPUProfile()
-
 	// Parse train
 	Dtrain := ml.MakeAndLoadDataset(*train, -1, true)
 	if *trainW != "" {
@@ -71,6 +64,17 @@ func main() {
 		}
 	}
 
+	f, err := os.Create("bench.pprof")
+	if err != nil {
+		log.Fatal("could not create CPU profile: ", err)
+	}
+	defer f.Close()
+
+	if err := pprof.StartCPUProfile(f); err != nil {
+		log.Fatal("could not start CPU profile: ", err)
+	}
+	defer pprof.StopCPUProfile()
+
 	// Train model
 	params := ftrl.MakeParams(
 		*alpha, *beta, *l1, *l2,
@@ -81,7 +85,7 @@ func main() {
 	logreg.Fit(Dtrain, Dvalid)
 
 	p := logreg.PredictBatch(Dvalid)
-
 	log.Println(ml.Mean(p))
+
 	logreg.DecisionSummary()
 }

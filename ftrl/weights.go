@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"math"
 
-	ml "github.com/go-code/ml/utils"
+	ml "github.com/go-code/goFTRL/utils"
 )
 
 type weights struct {

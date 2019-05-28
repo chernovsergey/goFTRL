@@ -6,7 +6,7 @@ import (
 	"runtime"
 	"sync"
 
-	ml "github.com/go-code/ml/utils"
+	util "github.com/go-code/goFTRL/utils"
 )
 
 const (
@@ -32,13 +32,13 @@ func MakeFTRL(p Params) *FTRL {
 	// Choose activation function
 	var f LinkFunction
 	if p.activation == 'b' {
-		// f = ml.SigmoidLinear
-		f = ml.SigmoidPiecewise
-		// f = ml.Sigmoid
+		// f = util.SigmoidLinear
+		f = util.SigmoidPiecewise
+		// f = util.Sigmoid
 	} else if p.activation == 'g' {
-		f = ml.Identity
+		f = util.Identity
 	} else if p.activation == 'p' {
-		f = ml.Exp
+		f = util.Exp
 	}
 
 	return &FTRL{
@@ -51,7 +51,7 @@ func MakeFTRL(p Params) *FTRL {
 // Validation dataset enables overfitting detection
 // mechanism, so final weights are chosen from best
 // validation logloss
-func (a *FTRL) Fit(train *ml.Dataset, valid *ml.Dataset) {
+func (a *FTRL) Fit(train *util.Dataset, valid *util.Dataset) {
 	numWeights := train.NCols()
 	if valid != nil {
 		if numWeights < valid.NCols() {
@@ -78,7 +78,7 @@ func (a *FTRL) initWeights(n uint64) {
 
 // Predict return probability estimation of positive outcome
 // for given sample
-func (a *FTRL) Predict(s ml.Sample) float64 {
+func (a *FTRL) Predict(s util.Sample) float64 {
 	var p float64
 	var w *weights
 	for _, feature := range s {
@@ -94,7 +94,7 @@ func (a *FTRL) Predict(s ml.Sample) float64 {
 
 // PredictBatch return probability estimations for every
 // sample in dataset
-func (a *FTRL) PredictBatch(d *ml.Dataset) []float64 {
+func (a *FTRL) PredictBatch(d *util.Dataset) []float64 {
 	nrows := d.NRows()
 	nworkers := runtime.NumCPU()
 	chunksize := int(nrows) / nworkers
@@ -113,7 +113,7 @@ func (a *FTRL) PredictBatch(d *ml.Dataset) []float64 {
 	return predicts
 }
 
-func predictBatchWorker(start int, end int, arr []float64, d *ml.Dataset, a *FTRL, wg *sync.WaitGroup) {
+func predictBatchWorker(start int, end int, arr []float64, d *util.Dataset, a *FTRL, wg *sync.WaitGroup) {
 	for j := start; j < end; j++ {
 		idx := uint64(j)
 		x := d.Row(idx)
@@ -169,15 +169,15 @@ func (a *FTRL) SetParams(p Params) {
 	a.params = p
 }
 
-func processSample(a *FTRL, x ml.Sample, y uint8, w float64) (float64, float64) {
+func processSample(a *FTRL, x util.Sample, y uint8, w float64) (float64, float64) {
 	p := a.Predict(x)
 	gw := (p - float64(y))
-	g := ml.Clip(w*gw, a.params.clipgrad)
+	g := util.Clip(w*gw, a.params.clipgrad)
 
 	for _, feature := range x {
 		k, v := feature.Key, feature.Value
 		if a.weights[k] == nil {
-			a.weights[k] = &weights{0.0, 0.0}
+			a.weights[k] = &weights{}
 		}
 		w := a.weights[k]
 
@@ -195,9 +195,9 @@ func processSample(a *FTRL, x ml.Sample, y uint8, w float64) (float64, float64) 
 	return p, gw
 }
 
-func epochRun(a *FTRL, d *ml.Dataset) (float64, float64) {
-	var i uint64
+func epochRun(a *FTRL, d *util.Dataset) (float64, float64) {
 	nrows := d.NRows()
+	var i uint64
 	grad := make([]float64, nrows)
 	loss := 0.0
 	for ; i < nrows; i++ {
@@ -207,10 +207,10 @@ func epochRun(a *FTRL, d *ml.Dataset) (float64, float64) {
 		p, g := processSample(a, x, y, w)
 
 		grad[i] = g
-		loss += ml.Logloss(p, y, w)
+		loss += util.Logloss(p, y, w)
 	}
 
-	return loss / d.WeightsSum(), ml.Mean(grad)
+	return loss / d.WeightsSum(), util.Mean(grad)
 }
 
 // DecisionSummary prints summary about learned

@@ -1,4 +1,6 @@
-package ml
+package utils
+
+import "math/rand"
 
 func max(a, b uint64) uint64 {
 	if a > b {
@@ -54,6 +56,18 @@ func (mat *COOMatrix) Set(i, j uint64, v float64) {
 // GetShape returns shape of yet constructed matrix
 func (mat *COOMatrix) GetShape() map[string]uint64 {
 	return map[string]uint64{"rows": mat.n + 1, "cols": mat.m + 1}
+}
+
+// ShuffleRows shuffles rows of matrix
+func (mat *COOMatrix) ShuffleRows() {
+	rand.Seed(42) // time.Now().UnixNano()
+	rand.Shuffle(len(mat.row)-1, func(i, j int) {
+		mat.row[i], mat.row[j] = mat.row[j], mat.row[i]
+		mat.col[i], mat.col[j] = mat.col[j], mat.col[i]
+		if !mat.isBinary {
+			mat.dat[i], mat.dat[j] = mat.dat[j], mat.dat[i]
+		}
+	})
 }
 
 // MakeCOO creates empty COO matrix

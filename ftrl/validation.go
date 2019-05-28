@@ -3,7 +3,7 @@ package ftrl
 import (
 	"runtime"
 
-	ml "github.com/go-code/ml/utils"
+	ml "github.com/go-code/goFTRL/utils"
 )
 
 func validateBatch(start, end int, valid *ml.Dataset, a *FTRL,
