@@ -2,12 +2,14 @@ package utils
 
 import (
 	"bufio"
-	"fmt"
 	"io"
 	"log"
+	"math/rand"
 	"os"
 	"strconv"
 	"strings"
+	"text/tabwriter"
+	"time"
 )
 
 type Feature struct {
@@ -93,11 +95,11 @@ func (d *Dataset) MeanTarget() float64 {
 	return d.meanTarget
 }
 
-// FromSVMFile parses input file in libsvm format
+// ReadSVM parses input file in libsvm format
 // simutaniously updating COO matrix. Finally compresses
 // COO matrix to CSR format.
-func (d *Dataset) FromSVMFile(path string,
-	maxrows int32, isBinary bool) {
+func (d *Dataset) ReadSVM(path string,
+	maxrows int32, isBinary bool) (*COOMatrix, []uint8) {
 
 	file, err := os.Open(path)
 	if err != nil {
@@ -107,8 +109,8 @@ func (d *Dataset) FromSVMFile(path string,
 
 	reader := bufio.NewReader(file)
 	matrix := MakeCOO(isBinary)
+	labels := make([]uint8, 0)
 	var rowIdx uint64
-	// var meanTarget uint64
 	for {
 		line, err := reader.ReadString('\n')
 		if err == io.EOF {
@@ -122,8 +124,7 @@ func (d *Dataset) FromSVMFile(path string,
 		if err != nil {
 			log.Fatal(err)
 		}
-		// meanTarget += label
-		d.labels = append(d.labels, uint8(label))
+		labels = append(labels, uint8(label))
 
 		for _, token := range tokens[1:] {
 			// [0] = key, [1] = value
@@ -142,19 +143,14 @@ func (d *Dataset) FromSVMFile(path string,
 			break
 		}
 	}
-
-	csr := MakeCSR(isBinary)
-	csr.FromCOO(matrix)
-	d.data = csr
-	// d.meanTarget = float64(meanTarget) / float64(rowIdx)
-	d.data.CacheRows()
-	log.Println(d)
+	return matrix, labels
 }
 
-func (d *Dataset) LoadSampleWeights(path string) {
+func (d *Dataset) LoadSampleWeights(path string) ([]float64, float64, error) {
 	file, err := os.Open(path)
 	if err != nil {
 		log.Fatal(err)
+		return nil, 0, err
 	}
 	defer file.Close()
 
@@ -176,15 +172,14 @@ func (d *Dataset) LoadSampleWeights(path string) {
 		weights = append(weights, w)
 		wsum += w
 	}
-	d.isWeighted = true
-	d.sampleWeights = weights
-	d.weightsSum = wsum
+	return weights, wsum, nil
 }
 
-func (d *Dataset) LoadFeatureNames(path string) {
+func (d *Dataset) LoadFeatureNames(path string) ([]string, error) {
 	file, err := os.Open(path)
 	if err != nil {
 		log.Fatal(err)
+		return nil, err
 	}
 	defer file.Close()
 
@@ -202,8 +197,7 @@ func (d *Dataset) LoadFeatureNames(path string) {
 
 		idx++
 	}
-
-	d.featureNames = names
+	return names, nil
 }
 
 // FromCSVFile reads file to dataset via
@@ -227,16 +221,72 @@ func MakeDataset() *Dataset {
 	return &Dataset{}
 }
 
-// MakeAndLoadDataset creates dataset object
-// and loads data from file
-func MakeAndLoadDataset(path string,
-	maxrows int32, isBinary bool) *Dataset {
+func LoadDataset(path, pathW, pathF string,
+	nrows int32, binary bool, shuffle bool) *Dataset {
+
 	d := MakeDataset()
-	d.FromSVMFile(path, maxrows, isBinary)
+	coo, labels := d.ReadSVM(path, nrows, binary)
+	csr := MakeCSR(binary)
+	csr.FromCOO(coo)
+	csr.CacheRows()
+	d.data = csr
+	d.labels = labels
+
+	var err error
+
+	var weights []float64
+	var wsum float64
+	if pathW != "" {
+		weights, wsum, err = d.LoadSampleWeights(pathW)
+		if err != nil {
+			panic("Can't load sample weights")
+		}
+		d.isWeighted = true
+		d.sampleWeights = weights
+		d.weightsSum = wsum
+	}
+
+	var fnames []string
+	if pathF != "" {
+		fnames, err = d.LoadFeatureNames(pathF)
+		if err != nil {
+			panic("Can't load feature names")
+		}
+		d.featureNames = fnames
+	}
+
+	if shuffle {
+		log.Println("Shuffling dataset ...")
+		m, n, k := len(d.data.cache), len(d.sampleWeights), len(d.labels)
+		if m != n || m != k {
+			panic("Inconsistent shape of data/weights/labels")
+		}
+
+		rand.Seed(time.Now().UnixNano()) // or 42
+		rand.Shuffle(len(d.data.cache), func(i, j int) {
+			d.data.cache[i], d.data.cache[j] = d.data.cache[j], d.data.cache[i]
+			d.labels[i], d.labels[j] = d.labels[j], d.labels[i]
+			d.sampleWeights[i], d.sampleWeights[j] = d.sampleWeights[j], d.sampleWeights[i]
+		})
+	}
+
+	log.Println(d)
 	return d
 }
 
 func (d *Dataset) String() string {
-	return fmt.Sprintf("Dataset{rows:%v, cols:%v, nnz:%v, sparcity:%v, binary:%t}",
-		d.NRows(), d.NCols(), d.Nnz(), d.Sparcity(), d.data.isBinary)
+	w := tabwriter.NewWriter(os.Stdout, 0, 0, 3, ' ', 0)
+	log.SetOutput(w)
+	log.Println()
+	log.Println("Field\tValue")
+	log.Println("-----\t-----")
+	log.Printf("rows\t%v", d.NRows())
+	log.Printf("cols\t%v", d.NCols())
+	log.Printf("nonzero\t%v", d.Nnz())
+	log.Printf("sparcity\t%v", d.Sparcity())
+	log.Printf("binary\t%v", d.data.isBinary)
+	log.Printf("weighed\t%v", d.isWeighted)
+	w.Flush()
+
+	return ""
 }

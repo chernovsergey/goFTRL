@@ -18,6 +18,8 @@ func main() {
 	// TODO add flag if to read binary dataset
 	// TODO add flag read fixed number of rows
 	// TODO enable profile if flag set
+	// TODO add model serialization/deserialization
+	// TODO add warmstart
 
 	train := flag.String("-t", "./files/train_dataset.svm", "path to TRAIN data")
 	trainW := flag.String("-tw", "./files/weights_train.csv", "path to TRAIN weights file")
@@ -39,41 +41,25 @@ func main() {
 
 	flag.Parse()
 
+	// Profiling
+	var prof *os.File
+	var err error
 	if *bench {
 		log.Println("pprof enabled!")
-	}
-
-	// Parse train
-	Dtrain := ml.MakeAndLoadDataset(*train, -1, true)
-	if *trainW != "" {
-		Dtrain.LoadSampleWeights(*trainW)
-		if *validF != "" {
-			Dtrain.LoadFeatureNames(*trainF)
+		prof, err = os.Create("bench.pprof")
+		if err != nil {
+			log.Fatal("could not create CPU profile: ", err)
+		}
+		if err = pprof.StartCPUProfile(prof); err != nil {
+			log.Fatal("could not start CPU profile: ", err)
 		}
 	}
-
-	// Parse validation
-	var Dvalid *ml.Dataset
-	if *valid != "" {
-		Dvalid = ml.MakeAndLoadDataset(*valid, -1, true)
-		if *validW != "" {
-			Dvalid.LoadSampleWeights(*validW)
-		}
-		if *validF != "" {
-			Dvalid.LoadFeatureNames(*validF)
-		}
-	}
-
-	f, err := os.Create("bench.pprof")
-	if err != nil {
-		log.Fatal("could not create CPU profile: ", err)
-	}
-	defer f.Close()
-
-	if err := pprof.StartCPUProfile(f); err != nil {
-		log.Fatal("could not start CPU profile: ", err)
-	}
+	defer prof.Close()
 	defer pprof.StopCPUProfile()
+
+	// Parse train & validation
+	Dtrain := ml.LoadDataset(*train, *trainW, *trainF, -1, true, false)
+	Dvalid := ml.LoadDataset(*valid, *validW, *validF, -1, true, false)
 
 	// Train model
 	params := ftrl.MakeParams(

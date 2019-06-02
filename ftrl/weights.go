@@ -4,11 +4,15 @@ import (
 	"fmt"
 	"math"
 
+	"encoding/json"
+
 	ml "github.com/go-code/goFTRL/utils"
 )
 
 type weights struct {
-	ni, zi float64
+	ni float64 `json: "ni"`
+	zi float64 `json: "zi"`
+	wi float64 `json: "wi"`
 }
 
 func (w *weights) get(p Params) float64 {
@@ -26,10 +30,15 @@ func (w *weights) get(p Params) float64 {
 	den += p.lambda2
 
 	wi := num / den
-
+	w.wi = wi
 	return wi
 }
 
 func (w *weights) String() string {
 	return fmt.Sprintf("%v\t%v", w.ni, w.zi)
+}
+
+func (w *weights) toJSON() (string, error) {
+	b, err := json.Marshal(w)
+	return string(b), err
 }

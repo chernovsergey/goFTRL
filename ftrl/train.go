@@ -1,18 +1,20 @@
 package ftrl
 
 import (
+	"encoding/json"
 	"log"
 	"math"
+	"os"
 	"runtime"
 	"sync"
+	"text/tabwriter"
 
 	util "github.com/go-code/goFTRL/utils"
 )
 
 const (
-	DecisionOutputTemplate = "Weights count: %d. Nonzero: %d. Range: [%f, %f]"
-	TrainOutputTemplate    = "#%d. tr.loss=%f grad.norm=%f"
-	ValOutputTemplate      = "#%02d. tr.loss=%f val.loss=%f avg(pCTR)=%f grad.norm=%f"
+	TrainOutputTemplate = "#%d. tr.loss=%f grad.norm=%f"
+	ValOutputTemplate   = "#%02d. tr.loss=%f val.loss=%f avg(pCTR)=%f grad.norm=%f"
 )
 
 // LinkFunction is an alias for activation function signature
@@ -113,7 +115,8 @@ func (a *FTRL) PredictBatch(d *util.Dataset) []float64 {
 	return predicts
 }
 
-func predictBatchWorker(start int, end int, arr []float64, d *util.Dataset, a *FTRL, wg *sync.WaitGroup) {
+func predictBatchWorker(start int, end int, arr []float64,
+	d *util.Dataset, a *FTRL, wg *sync.WaitGroup) {
 	for j := start; j < end; j++ {
 		idx := uint64(j)
 		x := d.Row(idx)
@@ -136,8 +139,12 @@ func (a *FTRL) Load() {
 // ToJSON deserializes model weights to
 // json format as input to any inference
 // engine
-func (a *FTRL) ToJSON() {
-	panic("Not implemented error")
+func (a *FTRL) ToJSON() string {
+	bytes, err := json.Marshal(a.weights)
+	if err != nil {
+		log.Fatal(err)
+	}
+	return string(bytes)
 }
 
 // GetWeights returns map index->weight for
@@ -182,14 +189,27 @@ func processSample(a *FTRL, x util.Sample, y uint8, w float64) (float64, float64
 		w := a.weights[k]
 
 		zi, ni := w.zi, w.ni
-		gi := g * v
-		sigma := (math.Sqrt(ni+gi*gi) - math.Sqrt(ni)) / a.params.alpha
-		wi := w.get(a.params)
-		zi = zi + gi - sigma*wi
-		ni = ni + (gi * gi)
 
-		w.zi = zi
-		w.ni = ni
+		gi := g * v
+		gi2 := gi * gi
+
+		// sigma := (math.Sqrt(ni+gi2) - math.Sqrt(ni)) / a.params.alpha
+		sub1 := math.Sqrt(ni + gi2)
+		sub2 := math.Sqrt(ni)
+		sigma := sub1 - sub2
+		sigma /= a.params.alpha
+
+		//w.get(a.params)
+		wi := w.wi
+
+		// zi = zi + gi - sigma*wi
+		zi += gi
+		zi -= sigma * wi
+
+		// ni = ni + (gi * gi)
+		ni += gi2
+
+		w.zi, w.ni = zi, ni
 	}
 
 	return p, gw
@@ -234,6 +254,14 @@ func (a *FTRL) DecisionSummary() {
 		maxWeight = math.Max(maxWeight, w)
 	}
 
-	log.Printf(DecisionOutputTemplate,
-		numWeights, countNonzero, minWeight, maxWeight)
+	w := tabwriter.NewWriter(os.Stdout, 0, 0, 3, ' ', 0)
+	log.SetOutput(w)
+	log.Println()
+	log.Println("Decision summary\t:::::")
+	log.Println("-----\t-----")
+	log.Printf("weights count\t%v", numWeights)
+	log.Printf("count nonzero\t%v", countNonzero)
+	log.Printf("min weight\t%v", minWeight)
+	log.Printf("max weight\t%v", maxWeight)
+	w.Flush()
 }

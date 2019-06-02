@@ -3,14 +3,14 @@ package ftrl
 import (
 	"testing"
 
-	ml "github.com/go-code/ml/utils"
+	ml "github.com/go-code/goFTRL/utils"
 )
 
 func BenchmarkSampleProcessing(b *testing.B) {
 	fileDir := "/Users/sergey/Downloads/"
 	trainFile := fileDir + "train_dataset.svm"
 
-	df := ml.MakeAndLoadDataset(trainFile, 1)
+	df := ml.LoadDataset(trainFile, "", "", 1, true, false)
 	sample := df.Row(0)
 	label := df.Label(0)
 
