@@ -4,14 +4,48 @@ import (
 	"bufio"
 	"log"
 	"os"
+	"runtime"
 	"strconv"
 	"strings"
+	"sync"
 )
 
 type SVMReader struct {
 	fdata    string
 	fweights string
 	maxrows  uint32
+}
+
+type Pair struct {
+	line   string
+	weight string
+}
+
+func parseWorker(in <-chan *Pair, out DataStream, wg *sync.WaitGroup) {
+	for pair := range in {
+		line, weight := pair.line, pair.weight
+
+		tokens := strings.Split(line, " ")
+		y, _ := strconv.ParseUint(tokens[0], 10, 8)
+
+		x := make(Sample, len(tokens[1:]))
+		for i, token := range tokens[1:] {
+			// [0] = key, [1] = value
+			parts := strings.Split(token, ":")
+			col, _ := strconv.ParseUint(parts[0], 10, 32)
+			val, _ := strconv.ParseFloat(parts[1], 64)
+			x[i] = Feature{Key: uint32(col), Value: val}
+		}
+
+		var w float64 = 1
+		if weight != "" {
+			w, _ = strconv.ParseFloat(weight, 64)
+		}
+
+		o := Observation{X: x, Y: uint8(y), W: w}
+		out <- o
+	}
+	wg.Done()
 }
 
 func (r *SVMReader) Read(outstream DataStream) {
@@ -34,43 +68,38 @@ func (r *SVMReader) Read(outstream DataStream) {
 	}
 	defer weights.Close()
 
+	// Pool of parsers
+	var wg sync.WaitGroup
+	raw := make(chan *Pair, 10000)
+	for work := 0; work < runtime.NumCPU(); work++ {
+		wg.Add(1)
+		go parseWorker(raw, outstream, &wg)
+	}
+
+	// Forward file scan
 	var row int
+	var textX, textW string
 	for scandata.Scan() {
 
-		sampleRow := strings.Split(strings.TrimSpace(scandata.Text()), " ")
-
-		y, err := strconv.ParseUint(sampleRow[0], 10, 8)
-		if err != nil {
-			log.Fatal(err)
-		}
-
-		x := make(Sample, len(sampleRow[1:]))
-		for i, token := range sampleRow[1:] {
-			// [0] = key, [1] = value
-			parts := strings.Split(token, ":")
-			col, _ := strconv.ParseUint(parts[0], 10, 32)
-			val, _ := strconv.ParseFloat(parts[1], 64)
-			x[i] = Feature{Key: uint32(col), Value: val}
-		}
-
-		var w float64 = 1
+		textX = scandata.Text()
 		if scanwght.Scan() {
-			weightRow := strings.TrimSpace(scanwght.Text())
-			w, _ = strconv.ParseFloat(weightRow, 64)
+			textW = scanwght.Text()
 		}
-
-		o := Observation{X: x, Y: uint8(y), W: w}
-		outstream <- o
+		raw <- &Pair{textX, textW}
 
 		row++
 		if r.maxrows == uint32(row) {
 			break
 		}
 
-		if row%100000 == 0 {
+		if row%1000000 == 0 {
 			log.Println(row)
 		}
 	}
+	close(raw)
 
-	close(outstream)
+	go func() {
+		wg.Wait()
+		close(outstream)
+	}()
 }

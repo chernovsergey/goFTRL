@@ -37,10 +37,10 @@ func main() {
 	clip := flag.Float64("-clip", 1000.0, "gradient clip value")
 	tol := flag.Float64("-tol", 1e-4, "tolerance")
 
-	usecache := flag.Bool("-cache", false, "use dataset caching")
-	prealloc := flag.Uint64("-preallocN", 1, "preallocate memory for N observations")
-	nEpoch := flag.Uint64("-e", 1, "number of epochs to train")
-	bench := flag.Bool("-pprof", true, "enable profiling")
+	usecache := flag.Bool("-cache", true, "use dataset caching")
+	prealloc := flag.Uint64("-preallocN", 9500000, "preallocate memory for N observations")
+	nEpoch := flag.Uint64("-e", 10, "number of epochs to train")
+	bench := flag.Bool("-pprof", false, "enable profiling")
 
 	flag.Parse()
 

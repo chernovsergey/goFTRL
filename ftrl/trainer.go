@@ -39,10 +39,9 @@ func (t *Trainer) Train() {
 			t.streamer.Stream(input)
 		}()
 
-		loss := make(chan float64)
+		loss := make(chan float64, 10000)
 		go func() {
 			t.model.Fit(input, loss)
-			close(loss)
 		}()
 
 		sumloss := 0.0

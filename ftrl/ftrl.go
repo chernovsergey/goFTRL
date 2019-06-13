@@ -44,16 +44,8 @@ func (a *FTRL) Fit(stream DataStream, loss chan float64) {
 		a.Update(x, p, y, sampleW)
 		loss <- util.Logloss(p, y, sampleW)
 	}
+	close(loss)
 }
-
-// // Fit fits model with given sample, label and sample weight
-// func (a *FTRL) Fit(o Observation) float64 {
-// 	x, y, sampleW := o.X, o.Y, o.W
-// 	p := a.Predict(x)
-// 	a.Update(x, p, y, sampleW)
-// 	loss := util.Logloss(p, y, sampleW)
-// 	return loss
-// }
 
 // Predict return probability estimation of positive outcome
 // for given sample

@@ -30,6 +30,13 @@ func MakeStreamer(pdata, pweights, colnames string,
 	}
 }
 
+func (s *Streamer) streamFromCache(out DataStream) {
+	n := int(s.cache.NRows())
+	for i := 0; i < n; i++ {
+		out <- s.cache.Row(uint64(i))
+	}
+}
+
 func (s *Streamer) Stream(out DataStream) {
 	if s.usecache {
 		s.cache = MakeDataset(s.prealloc)
@@ -42,14 +49,22 @@ func (s *Streamer) Stream(out DataStream) {
 	}
 
 	if s.usecache {
-		mirror := make(DataStream)
-		go reader.Read(mirror)
-		go func() {
-			for o := range mirror {
-				s.cache.Add(o)
-				out <- o
-			}
-		}()
+		if s.cacheDone {
+			go s.streamFromCache(out)
+		} else {
+			mirror := make(DataStream, 10000)
+			go reader.Read(mirror)
+			go func() {
+				for o := range mirror {
+					s.cache.Add(o)
+					out <- o
+				}
+				close(out)
+			}()
+			go func() {
+				s.cacheDone = true
+			}()
+		}
 	} else {
 		go reader.Read(out)
 	}
