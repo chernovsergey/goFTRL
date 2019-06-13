@@ -31,6 +31,7 @@ func (w *weights) get(p Params) float64 {
 
 	wi := num / den
 	w.wi = wi
+	
 	return wi
 }
 
