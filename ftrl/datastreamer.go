@@ -1,5 +1,9 @@
 package ftrl
 
+import (
+	"sync"
+)
+
 type Streamer struct {
 	data     string
 	weights  string
@@ -20,52 +24,81 @@ func MakeStreamer(pdata, pweights, colnames string,
 		return nil
 	}
 
+	var dataset *DatasetSparse
+	if usecache {
+		dataset = MakeDataset(prealloc)
+	}
+
 	return &Streamer{
 		data:     pdata,
 		weights:  pweights,
 		colnames: colnames,
+
 		usecache: usecache,
 		prealloc: prealloc,
+		cache:    dataset,
 		maxrows:  maxrows,
 	}
 }
 
-func (s *Streamer) streamFromCache(out DataStream) {
-	n := int(s.cache.NRows())
-	for i := 0; i < n; i++ {
-		out <- s.cache.Row(uint64(i))
-	}
+func (s *Streamer) ReadCache(out DataStream) {
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go func(w *sync.WaitGroup) {
+		n := int(s.cache.NRows())
+		for i := 0; i < n; i++ {
+			out <- s.cache.Row(uint64(i))
+		}
+		wg.Done()
+	}(&wg)
+
+	go func() {
+		wg.Wait()
+		close(out)
+	}()
 }
 
-func (s *Streamer) Stream(out DataStream) {
-	if s.usecache {
-		s.cache = MakeDataset(s.prealloc)
-	}
+func (s *Streamer) ReadAndCache(out DataStream, reader *SVMReader) {
+	mirror := make(DataStream, 10000)
+	go reader.Read(mirror)
 
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go func(w *sync.WaitGroup) {
+		for o := range mirror {
+			s.cache.Add(o)
+			out <- o
+		}
+		wg.Done()
+	}(&wg)
+
+	go func() {
+		wg.Wait()
+		close(out)
+		s.cacheDone = true
+	}()
+}
+
+func (s *Streamer) Stream() DataStream {
 	reader := SVMReader{
 		fdata:    s.data,
 		fweights: s.weights,
 		maxrows:  s.maxrows,
 	}
 
+	out := make(DataStream, 10000)
 	if s.usecache {
 		if s.cacheDone {
-			go s.streamFromCache(out)
+			s.ReadCache(out)
 		} else {
-			mirror := make(DataStream, 10000)
-			go reader.Read(mirror)
-			go func() {
-				for o := range mirror {
-					s.cache.Add(o)
-					out <- o
-				}
-				close(out)
-			}()
-			go func() {
-				s.cacheDone = true
-			}()
+			s.ReadAndCache(out, &reader)
 		}
-	} else {
-		go reader.Read(out)
+		return out
 	}
+
+	go func() {
+		reader.Read(out)
+	}()
+
+	return out
 }

@@ -40,7 +40,7 @@ func main() {
 	usecache := flag.Bool("-cache", true, "use dataset caching")
 	prealloc := flag.Uint64("-preallocN", 9500000, "preallocate memory for N observations")
 	nEpoch := flag.Uint64("-e", 10, "number of epochs to train")
-	bench := flag.Bool("-pprof", false, "enable profiling")
+	bench := flag.Bool("-pprof", true, "enable profiling")
 
 	flag.Parse()
 
@@ -72,6 +72,6 @@ func main() {
 	// svalid := ftrl.MakeStreamer(*valid, *validW, *validF, *usecache, uint32(*prealloc), uint32(*validR))
 
 	trainer := ftrl.MakeTrainer(logreg, strain, svalid, uint32(*nEpoch))
-	trainer.Run()
+	trainer.Train()
 	logreg.DecisionSummary()
 }

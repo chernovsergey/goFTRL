@@ -2,6 +2,7 @@ package ftrl
 
 import (
 	"log"
+	"sync"
 )
 
 const (
@@ -25,36 +26,29 @@ func MakeTrainer(model *FTRL, trainStream *Streamer, valStream *Streamer, numEpo
 	}
 }
 
-func (t *Trainer) Run() {
-	if t.valstream != nil {
-		t.TrainAndValidate()
-	}
-	t.Train()
-}
-
 func (t *Trainer) Train() {
 	for i := 0; i < int(t.iters); i++ {
-		input := make(DataStream, 10000)
-		go func() {
-			t.streamer.Stream(input)
-		}()
+		input := t.streamer.Stream()
 
-		loss := make(chan float64, 10000)
+		loss := make(chan float64)
 		go func() {
 			t.model.Fit(input, loss)
 		}()
 
+		var wg sync.WaitGroup
+		wg.Add(1)
 		sumloss := 0.0
-		for ll := range loss {
-			sumloss += ll
-		}
-		// sumloss /= t.streamer.cache.weightSum
-		log.Printf(TrainOutputTemplate, i, sumloss)
+		go func(w *sync.WaitGroup) {
+			for ll := range loss {
+				sumloss += ll
+			}
+			w.Done()
+		}(&wg)
+
+		go func() {
+			wg.Wait()
+			log.Printf(TrainOutputTemplate, i+1, sumloss)
+		}()
+
 	}
-}
-
-func (t *Trainer) Validate() {
-}
-
-func (t *Trainer) TrainAndValidate() {
 }
