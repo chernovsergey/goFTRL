@@ -39,25 +39,33 @@ func main() {
 	clip := flag.Float64("-clip", 1000.0, "gradient clip value")
 	tol := flag.Float64("-tol", 1e-4, "tolerance")
 
-	usecache := flag.Bool("-cache", true, "use dataset caching")
+	usecache := flag.Bool("-cache", false, "use dataset caching")
 	nEpoch := flag.Uint64("-e", 10, "number of epochs to train")
 	bench := flag.Bool("-pprof", true, "enable profiling")
 
 	flag.Parse()
 
-	var prof *os.File
+	var cpuprof *os.File
+	var memprof *os.File
 	var err error
 	if *bench {
 		log.Println("pprof enabled!")
-		prof, err = os.Create("bench.pprof")
+		cpuprof, err = os.Create("bench.pprof")
 		if err != nil {
 			log.Fatal("could not create CPU profile: ", err)
 		}
-		if err = pprof.StartCPUProfile(prof); err != nil {
+		if err = pprof.StartCPUProfile(cpuprof); err != nil {
 			log.Fatal("could not start CPU profile: ", err)
 		}
+
+		memprof, err = os.Create("bench.mem.pprof")
+		if err != nil {
+			log.Fatal("could not create MEM profile: ", err)
+		}
 	}
-	defer prof.Close()
+	defer memprof.Close()
+	defer pprof.WriteHeapProfile(memprof)
+	defer cpuprof.Close()
 	defer pprof.StopCPUProfile()
 
 	params := ftrl.MakeParams(

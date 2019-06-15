@@ -12,7 +12,7 @@ import (
 // FTRL is a structure for "Follow The Regularized Leader"
 // logistic regression algorithm
 type FTRL struct {
-	weights    map[uint32]*weights
+	weights    WeightKeeper
 	params     Params
 	activation LinkFunction
 }
@@ -33,7 +33,7 @@ func MakeFTRL(p Params) *FTRL {
 	return &FTRL{
 		params:     p,
 		activation: f,
-		weights:    make(map[uint32]*weights)}
+		weights:    MakeWeightMap()}
 }
 
 // Fit fits model with given sample, label and sample weight
@@ -57,7 +57,7 @@ func (a *FTRL) Predict(s Sample) float64 {
 	var v float64
 	for _, item := range s {
 		k, v = item.Key, item.Value
-		if w, ok = a.weights[k]; ok {
+		if w, ok = a.weights.Get(k); ok {
 			p += w.get(a.params) * v
 		}
 	}
@@ -76,9 +76,9 @@ func (a *FTRL) Update(s Sample, p float64, y uint8, sampleW float64) {
 	for _, item := range s {
 		k, v = item.Key, item.Value
 
-		if w, ok = a.weights[k]; !ok {
+		if w, ok = a.weights.Get(k); !ok {
 			w = &weights{}
-			a.weights[k] = w
+			a.weights.Set(k, w)
 		}
 
 		zi, ni := w.zi, w.ni
@@ -97,19 +97,8 @@ func (a *FTRL) Update(s Sample, p float64, y uint8, sampleW float64) {
 
 // DecisionSummary prints learned weights summary
 func (a *FTRL) DecisionSummary() {
-	numWeights := uint64(len(a.weights))
-	var countNonzero int
-	var min, max float64
-
-	for _, w := range a.weights {
-		v := w.get(a.params)
-		if v != 0.0 {
-			countNonzero++
-		}
-
-		min = math.Min(min, v)
-		max = math.Max(max, v)
-	}
+	wcount := a.weights.Size()
+	wnonzero, wmin, wmax := a.weights.Summary()
 
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 3, ' ', 0)
 	log.SetOutput(w)
@@ -117,9 +106,9 @@ func (a *FTRL) DecisionSummary() {
 	log.Println("Decision summary\t:::::")
 	log.Println("-----\t-----")
 	log.Println(&a.params)
-	log.Printf("weights count\t%v", numWeights)
-	log.Printf("count nonzero\t%v", countNonzero)
-	log.Printf("min weight\t%v", min)
-	log.Printf("max weight\t%v", max)
+	log.Printf("weights count\t%v", wcount)
+	log.Printf("count nonzero\t%v", wnonzero)
+	log.Printf("min weight\t%v", wmin)
+	log.Printf("max weight\t%v", wmax)
 	w.Flush()
 }

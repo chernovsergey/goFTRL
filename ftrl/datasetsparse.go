@@ -15,9 +15,6 @@ type DatasetSparse struct {
 
 //
 func MakeDataset(capacity uint32) *DatasetSparse {
-	if capacity == 0 {
-		capacity = 10000000
-	}
 	return &DatasetSparse{
 		data: make([]Observation, 0, capacity)}
 }
@@ -26,6 +23,7 @@ func MakeDataset(capacity uint32) *DatasetSparse {
 func (d *DatasetSparse) Add(o Observation) {
 	d.data = append(d.data, o)
 	d.weightSum += o.W
+	d.nnz += uint64(len(o.X))
 }
 
 // Row returns elements of ith row of dataset in sparse format

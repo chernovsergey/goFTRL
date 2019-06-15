@@ -4,13 +4,14 @@ import (
 	"log"
 	"runtime"
 	"sync"
+	"time"
 
 	util "github.com/go-code/goFTRL/utils"
 )
 
 const (
-	TemplateTrain    = "#%02d. tr.loss=%f"
-	TemplateTrainVal = TemplateTrain + " val.loss=%f avg(pCTR)=%f"
+	TemplateTrain    = "#%02d. tr.loss=%f time{train:%v, val:%v}"
+	TemplateTrainVal = "#%02d. tr.loss=%f val.loss=%f avg(pCTR)=%f time{train:%v, val:%v}"
 )
 
 type Trainer struct {
@@ -38,15 +39,31 @@ func MakeTrainer(model *FTRL, trainStream *Streamer, valStream *Streamer, numEpo
 
 func (t *Trainer) Run() {
 	for i := 0; i < int(t.iters); i++ {
+
+		if t.streamer.cacheDone {
+			switch t.model.weights.(type) {
+			case *WeightMap:
+				t.model.weights = MakeWeightArray(t.model.weights.(*WeightMap))
+			}
+		}
+
+		tic := time.Now()
 		tr := t.Train()
+		toctr := time.Since(tic)
+
 		trloss := tr.loss / tr.wsum
+
 		if t.valstream != nil {
+			tic = time.Now()
 			val := t.Validate()
-			log.Printf(TemplateTrainVal, i+1, trloss,
-				val.loss/val.wsum, val.psum/float64(val.iters))
+			tocval := time.Since(tic)
+
+			valloss := val.loss / val.wsum
+			avgPred := val.psum / val.wsum
+			log.Printf(TemplateTrainVal, i+1, trloss, valloss, avgPred, toctr, tocval)
 			continue
 		}
-		log.Printf(TemplateTrain, i+1, trloss)
+		log.Printf(TemplateTrain, i+1, trloss, toctr)
 	}
 }
 
@@ -82,7 +99,7 @@ func (t *Trainer) Validate() result {
 				p := t.model.Predict(o.X)
 				res.loss += util.Logloss(p, o.Y, o.W)
 				res.iters++
-				res.psum += p
+				res.psum += p * o.W
 			}
 			out <- res
 			w.Done()
