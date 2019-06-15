@@ -27,6 +27,6 @@ func MakeParams(
 }
 
 func (p *Params) String() string {
-	return fmt.Sprintf("Hyperparams{Alpha:%v, Beta:%v, L1:%v, L2:%v, max_iter:%v, activation:%v}",
+	return fmt.Sprintf("FTRL{Alpha:%v, Beta:%v, L1:%v, L2:%v, max_iter:%v, activation:%q}",
 		p.alpha, p.beta, p.lambda1, p.lambda2, p.niter, p.activation)
 }

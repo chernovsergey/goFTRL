@@ -116,6 +116,7 @@ func (a *FTRL) DecisionSummary() {
 	log.Println()
 	log.Println("Decision summary\t:::::")
 	log.Println("-----\t-----")
+	log.Println(&a.params)
 	log.Printf("weights count\t%v", numWeights)
 	log.Printf("count nonzero\t%v", countNonzero)
 	log.Printf("min weight\t%v", min)

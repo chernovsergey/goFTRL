@@ -59,7 +59,7 @@ func (s *Streamer) ReadCache(out DataStream) {
 }
 
 func (s *Streamer) ReadAndCache(out DataStream, reader *SVMReader) {
-	mirror := make(DataStream, 10000)
+	mirror := make(DataStream, cap(out))
 	go reader.Read(mirror)
 
 	var wg sync.WaitGroup

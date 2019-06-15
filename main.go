@@ -20,15 +20,17 @@ func main() {
 	// TODO add model serialization/deserialization
 	// TODO add warmstart
 
-	train := flag.String("-t", "./files/train_dataset.svm", "path to TRAIN data")
-	trainW := flag.String("-tw", "./files/weights_train.csv", "path to TRAIN weights file")
-	trainF := flag.String("-tf", "", "path to TRAIN feature names")
-	trainR := flag.Int("-tnrows", 10000000, "Use at most N rows of TRAIN dataset")
+	train := flag.String("-t", "./files/train_dataset.svm", "Path to TRAIN data")
+	trainW := flag.String("-tw", "./files/weights_train.csv", "Path to TRAIN weights file")
+	trainF := flag.String("-tf", "", "Path to TRAIN feature names")
+	trainR := flag.Int("-tnrows", -1, "Use at most N rows of TRAIN dataset")
+	trainA := flag.Int("-talloc", 0, "Preallocate memory for N train observations")
 
-	// valid := flag.String("-v", "./files/valid_dataset.svm", "path to VALID data")
-	// validW := flag.String("-vw", "./files/weights_valid.csv", "path to VALID weights file")
-	// validF := flag.String("-vf", "", "path to VALID feature names")
-	// validR := flag.Int("-vnrows", -1, "Use at most N rows of VALID dataset")
+	valid := flag.String("-v", "./files/valid_dataset.svm", "path to VALID data")
+	validW := flag.String("-vw", "./files/weights_valid.csv", "path to VALID weights file")
+	validF := flag.String("-vf", "", "path to VALID feature names")
+	validR := flag.Int("-vnrows", -1, "Use at most N rows of VALID dataset")
+	validA := flag.Int("-valloc", 0, "Preallocate memory for N validation observations")
 
 	alpha := flag.Float64("-a", 0.15, "alpha")
 	beta := flag.Float64("-b", 1.0, "beta")
@@ -38,7 +40,6 @@ func main() {
 	tol := flag.Float64("-tol", 1e-4, "tolerance")
 
 	usecache := flag.Bool("-cache", true, "use dataset caching")
-	prealloc := flag.Uint64("-preallocN", 9500000, "preallocate memory for N observations")
 	nEpoch := flag.Uint64("-e", 10, "number of epochs to train")
 	bench := flag.Bool("-pprof", true, "enable profiling")
 
@@ -66,12 +67,10 @@ func main() {
 
 	logreg := ftrl.MakeFTRL(params)
 
-	strain := ftrl.MakeStreamer(*train, *trainW, *trainF, *usecache, uint32(*prealloc), uint32(*trainR))
-
-	var svalid *ftrl.Streamer
-	// svalid := ftrl.MakeStreamer(*valid, *validW, *validF, *usecache, uint32(*prealloc), uint32(*validR))
+	strain := ftrl.MakeStreamer(*train, *trainW, *trainF, *usecache, uint32(*trainA), uint32(*trainR))
+	svalid := ftrl.MakeStreamer(*valid, *validW, *validF, *usecache, uint32(*validA), uint32(*validR))
 
 	trainer := ftrl.MakeTrainer(logreg, strain, svalid, uint32(*nEpoch))
-	trainer.Train()
-	logreg.DecisionSummary()
+	trainer.Run()
+	trainer.PrintSummary()
 }
