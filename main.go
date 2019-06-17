@@ -4,7 +4,9 @@ import (
 	"flag"
 	"log"
 	"os"
+	"runtime"
 	"runtime/pprof"
+	"runtime/trace"
 
 	"github.com/go-code/goFTRL/ftrl"
 )
@@ -24,13 +26,13 @@ func main() {
 	trainW := flag.String("-tw", "./files/weights_train.csv", "Path to TRAIN weights file")
 	trainF := flag.String("-tf", "", "Path to TRAIN feature names")
 	trainR := flag.Int("-tnrows", -1, "Use at most N rows of TRAIN dataset")
-	trainA := flag.Int("-talloc", 0, "Preallocate memory for N train observations")
+	trainA := flag.Int("-talloc", 9500000, "Preallocate memory for N train observations")
 
 	valid := flag.String("-v", "./files/valid_dataset.svm", "path to VALID data")
 	validW := flag.String("-vw", "./files/weights_valid.csv", "path to VALID weights file")
 	validF := flag.String("-vf", "", "path to VALID feature names")
 	validR := flag.Int("-vnrows", -1, "Use at most N rows of VALID dataset")
-	validA := flag.Int("-valloc", 0, "Preallocate memory for N validation observations")
+	validA := flag.Int("-valloc", 5000000, "Preallocate memory for N validation observations")
 
 	alpha := flag.Float64("-a", 0.15, "alpha")
 	beta := flag.Float64("-b", 1.0, "beta")
@@ -39,34 +41,41 @@ func main() {
 	clip := flag.Float64("-clip", 1000.0, "gradient clip value")
 	tol := flag.Float64("-tol", 1e-4, "tolerance")
 
-	usecache := flag.Bool("-cache", false, "use dataset caching")
+	usecache := flag.Bool("-cache", true, "use dataset caching")
 	nEpoch := flag.Uint64("-e", 10, "number of epochs to train")
-	bench := flag.Bool("-pprof", true, "enable profiling")
+	bench := flag.Bool("-pprof", false, "enable profiling")
 
 	flag.Parse()
 
-	var cpuprof *os.File
-	var memprof *os.File
+	runtime.GOMAXPROCS(runtime.NumCPU())
+
+	var cpuprof, memprof, traceprof *os.File
 	var err error
 	if *bench {
 		log.Println("pprof enabled!")
+
 		cpuprof, err = os.Create("bench.pprof")
 		if err != nil {
 			log.Fatal("could not create CPU profile: ", err)
 		}
-		if err = pprof.StartCPUProfile(cpuprof); err != nil {
-			log.Fatal("could not start CPU profile: ", err)
-		}
+		pprof.StartCPUProfile(cpuprof)
 
 		memprof, err = os.Create("bench.mem.pprof")
 		if err != nil {
 			log.Fatal("could not create MEM profile: ", err)
 		}
+
+		traceprof, err = os.Create("bench.trace")
+		if err != nil {
+			log.Fatal("could not create TRACE profile: ", err)
+		}
+		trace.Start(traceprof)
 	}
 	defer memprof.Close()
 	defer pprof.WriteHeapProfile(memprof)
 	defer cpuprof.Close()
 	defer pprof.StopCPUProfile()
+	defer trace.Stop()
 
 	params := ftrl.MakeParams(
 		*alpha, *beta, *l1, *l2,

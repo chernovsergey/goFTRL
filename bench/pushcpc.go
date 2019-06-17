@@ -1,7 +1,7 @@
 package main
 
 import (
-	ml "github.com/go-code/goFTRL/utils"
+	"github.com/go-code/goFTRL/ftrl"
 )
 
 const (
@@ -14,24 +14,20 @@ func pushhuge() {
 	trainW := fileDir + "weights_train_huge.csv"
 
 	valid := fileDir + "valid_dataset_huge.svm"
-	validW := fileDir + "weights_valid_huge.svm"
+	validW := fileDir + "weights_valid_huge.csv"
 
-	_ = ml.LoadDatasetSparse(train, trainW, "", -1, true, false)
-	_ = ml.LoadDatasetSparse(valid, validW, "", -1, true, false)
+	params := ftrl.MakeParams(
+		0.15, 1.0, 0.5, 1.0,
+		1000, 0.0, 1e-4,
+		10, 'b')
+	logreg := ftrl.MakeFTRL(params)
 
-	// Train model
-	// params := ftrl.MakeParams(
-	// 	0.15, 1.0, 0.5, 1.0,
-	// 	1000, 0.0, 1e-4,
-	// 	10, 'b')
+	strain := ftrl.MakeStreamer(train, trainW, "", true, uint32(114524174+1), uint32(200000000))
+	svalid := ftrl.MakeStreamer(valid, validW, "", true, uint32(13302027+1), uint32(200000000))
 
-	// logreg := ftrl.MakeFTRL(params)
-	// logreg.Fit(Dtrain, Dvalid)
-
-	// p := logreg.PredictBatch(Dvalid)
-	// log.Println(ml.Mean(p))
-
-	// logreg.DecisionSummary()
+	trainer := ftrl.MakeTrainer(logreg, strain, svalid, uint32(10))
+	trainer.Run()
+	trainer.PrintSummary()
 }
 
 func main() {

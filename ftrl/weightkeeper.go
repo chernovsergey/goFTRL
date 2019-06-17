@@ -1,7 +1,7 @@
 package ftrl
 
 import (
-	"log"
+	"fmt"
 	"math"
 )
 
@@ -57,7 +57,6 @@ func MakeWeightArray(m *WeightMap) *WeightArray {
 			maxkey = k
 		}
 	}
-	log.Println("max key = ", maxkey)
 
 	arr := make([]*weights, maxkey+1)
 	for k, v := range m.store {
@@ -67,6 +66,10 @@ func MakeWeightArray(m *WeightMap) *WeightArray {
 }
 
 func (w *WeightArray) Get(k uint32) (*weights, bool) {
+	if k >= w.Size() {
+		return nil, false
+	}
+
 	if w.store[k] != nil {
 		return w.store[k], true
 	}
@@ -74,6 +77,9 @@ func (w *WeightArray) Get(k uint32) (*weights, bool) {
 }
 
 func (w *WeightArray) Set(k uint32, weight *weights) {
+	if k >= w.Size() {
+		panic(fmt.Sprintf("Tried to set at index %d, but only %d available", k, w.Size()-1))
+	}
 	if weight != nil {
 		w.store[k] = weight
 	}

@@ -28,7 +28,8 @@ type result struct {
 	iters uint64
 }
 
-func MakeTrainer(model *FTRL, trainStream *Streamer, valStream *Streamer, numEpoch uint32) *Trainer {
+func MakeTrainer(model *FTRL, trainStream *Streamer, valStream *Streamer,
+	numEpoch uint32) *Trainer {
 	return &Trainer{
 		model:     model,
 		streamer:  trainStream,
@@ -78,8 +79,8 @@ func (t *Trainer) Train() result {
 	var res result
 	for ll := range loss {
 		res.loss += ll
+		res.wsum++
 	}
-	res.wsum = t.streamer.cache.WeightsSum()
 
 	return res
 }
@@ -99,6 +100,7 @@ func (t *Trainer) Validate() result {
 				p := t.model.Predict(o.X)
 				res.loss += util.Logloss(p, o.Y, o.W)
 				res.iters++
+				res.wsum += o.W
 				res.psum += p * o.W
 			}
 			out <- res
@@ -114,10 +116,10 @@ func (t *Trainer) Validate() result {
 	var res result
 	for r := range results {
 		res.loss += r.loss
+		res.wsum += r.wsum
 		res.psum += r.psum
 		res.iters += r.iters
 	}
-	res.wsum = t.valstream.cache.WeightsSum()
 
 	return res
 }
