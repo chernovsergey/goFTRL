@@ -16,9 +16,10 @@ const (
 
 type Trainer struct {
 	model     *FTRL
-	streamer  *Streamer
-	valstream *Streamer
+	train     *Streamer
+	valid     *Streamer
 	iters     uint32
+	optimized bool
 }
 
 type result struct {
@@ -31,49 +32,93 @@ type result struct {
 func MakeTrainer(model *FTRL, trainStream *Streamer, valStream *Streamer,
 	numEpoch uint32) *Trainer {
 	return &Trainer{
-		model:     model,
-		streamer:  trainStream,
-		valstream: valStream,
-		iters:     numEpoch,
+		model: model,
+		train: trainStream,
+		valid: valStream,
+		iters: numEpoch,
+	}
+}
+
+func (t *Trainer) optimizeStorage() {
+	switch t.model.weights.(type) {
+	case *WeightMap:
+		ts := time.Now()
+		t.model.weights = MakeWeightArray(t.model.weights.(*WeightMap))
+		t.optimized = true
+		log.Println("weights store = array", time.Since(ts))
 	}
 }
 
 func (t *Trainer) Run() {
+	t0 := time.Now()
 	for i := 0; i < int(t.iters); i++ {
 
-		if t.streamer.cacheDone {
-			switch t.model.weights.(type) {
-			case *WeightMap:
-				t.model.weights = MakeWeightArray(t.model.weights.(*WeightMap))
-			}
+		if t.train.cacheDone && !t.optimized {
+			t.optimizeStorage()
 		}
 
 		tic := time.Now()
-		tr := t.Train()
-		toctr := time.Since(tic)
+		res := t.Train()
+		t1 := time.Since(tic)
+		loss := res.loss / res.wsum
 
-		trloss := tr.loss / tr.wsum
-
-		if t.valstream != nil {
+		if t.valid != nil {
 			tic = time.Now()
-			val := t.Validate()
-			tocval := time.Since(tic)
+			res = t.Validate()
+			t2 := time.Since(tic)
 
-			valloss := val.loss / val.wsum
-			avgPred := val.psum / val.wsum
-			log.Printf(TemplateTrainVal, i+1, trloss, valloss, avgPred, toctr, tocval)
+			valloss := res.loss / res.wsum
+			avgPred := res.psum / res.wsum
+			log.Printf(TemplateTrainVal, i+1, loss, valloss, avgPred, t1, t2)
 			continue
 		}
-		log.Printf(TemplateTrain, i+1, trloss, toctr)
+		log.Printf(TemplateTrain, i+1, loss, t1)
 	}
+	log.Println("Total fit time:", time.Since(t0))
+}
+
+func (t *Trainer) TrainParallel(input DataStream) result {
+
+	loss := make(chan result, runtime.NumCPU())
+
+	var wg sync.WaitGroup
+	for w := 0; w < runtime.NumCPU(); w++ {
+		wg.Add(1)
+		go func(w *sync.WaitGroup, out chan result) {
+			var res result
+			for o := range input {
+				ll := t.model.Fit(o)
+				res.loss += ll
+			}
+			out <- res
+			w.Done()
+		}(&wg, loss)
+	}
+
+	go func() {
+		wg.Wait()
+		close(loss)
+	}()
+
+	var res result
+	for ll := range loss {
+		res.loss += ll.loss
+		res.wsum++
+	}
+
+	return res
 }
 
 func (t *Trainer) Train() result {
-	input := t.streamer.Stream()
+	input := t.train.Stream()
+
+	if t.train.cacheDone {
+		return t.TrainParallel(input)
+	}
 
 	loss := make(chan float64)
 	go func() {
-		t.model.Fit(input, loss)
+		t.model.FitStream(input, loss)
 	}()
 
 	var res result
@@ -87,7 +132,7 @@ func (t *Trainer) Train() result {
 
 func (t *Trainer) Validate() result {
 
-	input := t.valstream.Stream()
+	input := t.valid.Stream()
 
 	results := make(chan result, runtime.NumCPU())
 
@@ -126,6 +171,6 @@ func (t *Trainer) Validate() result {
 
 func (t *Trainer) PrintSummary() {
 	t.model.DecisionSummary()
-	log.Println(t.streamer.cache)
-	log.Println(t.valstream.cache)
+	log.Println(t.train.cache)
+	log.Println(t.valid.cache)
 }

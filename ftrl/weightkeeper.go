@@ -1,7 +1,6 @@
 package ftrl
 
 import (
-	"fmt"
 	"math"
 )
 
@@ -77,9 +76,6 @@ func (w *WeightArray) Get(k uint32) (*weights, bool) {
 }
 
 func (w *WeightArray) Set(k uint32, weight *weights) {
-	if k >= w.Size() {
-		panic(fmt.Sprintf("Tried to set at index %d, but only %d available", k, w.Size()-1))
-	}
 	if weight != nil {
 		w.store[k] = weight
 	}

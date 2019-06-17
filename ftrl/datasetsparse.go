@@ -22,8 +22,8 @@ func MakeDataset(capacity uint32) *DatasetSparse {
 // Add adds new element
 func (d *DatasetSparse) Add(o Observation) {
 	d.data = append(d.data, o)
-	d.weightSum += o.W
-	d.nnz += uint64(len(o.X))
+	// d.weightSum += o.W
+	// d.nnz += uint64(len(o.X))
 }
 
 // Row returns elements of ith row of dataset in sparse format

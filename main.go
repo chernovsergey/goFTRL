@@ -4,7 +4,6 @@ import (
 	"flag"
 	"log"
 	"os"
-	"runtime"
 	"runtime/pprof"
 	"runtime/trace"
 
@@ -47,8 +46,6 @@ func main() {
 
 	flag.Parse()
 
-	runtime.GOMAXPROCS(runtime.NumCPU())
-
 	var cpuprof, memprof, traceprof *os.File
 	var err error
 	if *bench {
@@ -60,16 +57,16 @@ func main() {
 		}
 		pprof.StartCPUProfile(cpuprof)
 
-		memprof, err = os.Create("bench.mem.pprof")
-		if err != nil {
-			log.Fatal("could not create MEM profile: ", err)
-		}
-
 		traceprof, err = os.Create("bench.trace")
 		if err != nil {
 			log.Fatal("could not create TRACE profile: ", err)
 		}
 		trace.Start(traceprof)
+
+		memprof, err = os.Create("bench.mem.pprof")
+		if err != nil {
+			log.Fatal("could not create MEM profile: ", err)
+		}
 	}
 	defer memprof.Close()
 	defer pprof.WriteHeapProfile(memprof)
