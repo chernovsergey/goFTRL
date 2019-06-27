@@ -1,5 +1,6 @@
 *.svm
 *.csv
 *.pprof
+*.prof
 *.trace
 
