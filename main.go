@@ -40,8 +40,8 @@ func main() {
 	clip := flag.Float64("-clip", 1000.0, "gradient clip value")
 	tol := flag.Float64("-tol", 1e-4, "tolerance")
 
-	usecache := flag.Bool("-cache", true, "use dataset caching")
-	nEpoch := flag.Uint64("-e", 10, "number of epochs to train")
+	// usecache := flag.Bool("-cache", true, "use dataset caching")
+	nEpoch := flag.Uint64("-e", 20, "number of epochs to train")
 	bench := flag.Bool("-pprof", false, "enable profiling")
 
 	flag.Parse()
@@ -81,10 +81,10 @@ func main() {
 
 	logreg := ftrl.MakeFTRL(params)
 
-	strain := ftrl.MakeStreamer(*train, *trainW, *trainF, *usecache, uint32(*trainA), uint32(*trainR))
-	svalid := ftrl.MakeStreamer(*valid, *validW, *validF, *usecache, uint32(*validA), uint32(*validR))
+	dtrain := ftrl.NewDataReader(*train, *trainW, *trainF, uint32(*trainA), uint32(*trainR))
+	dvalid := ftrl.NewDataReader(*valid, *validW, *validF, uint32(*validA), uint32(*validR))
 
-	trainer := ftrl.MakeTrainer(logreg, strain, svalid, uint32(*nEpoch))
+	trainer := ftrl.NewTrainer(logreg, dtrain, dvalid, uint32(*nEpoch))
 	trainer.Run()
 	trainer.PrintSummary()
 }

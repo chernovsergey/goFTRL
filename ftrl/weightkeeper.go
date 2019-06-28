@@ -8,6 +8,7 @@ type WeightKeeper interface {
 	Get(uint32) (*weights, bool)
 	Set(uint32, *weights)
 	Size() uint32
+	Copy() WeightKeeper
 	Summary() (uint32, float64, float64)
 }
 
@@ -30,6 +31,14 @@ func (w *WeightMap) Set(k uint32, weight *weights) {
 
 func (w *WeightMap) Size() uint32 {
 	return uint32(len(w.store))
+}
+
+func (w *WeightMap) Copy() *WeightMap {
+	newstore := make(map[uint32]*weights)
+	for k, v := range w.store {
+		newstore[k] = v
+	}
+	return &WeightMap{store: newstore}
 }
 
 func (w *WeightMap) Summary() (uint32, float64, float64) {
@@ -82,6 +91,10 @@ func (w *WeightArray) Set(k uint32, weight *weights) {
 }
 
 func (w *WeightArray) Size() uint32 {
+	return uint32(len(w.store))
+}
+
+func (w *WeightArray) Copy() uint32 {
 	return uint32(len(w.store))
 }
 
