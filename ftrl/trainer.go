@@ -59,13 +59,7 @@ func (t *Trainer) Run() {
 
 	t0 = time.Now()
 	for i := 0; i < int(t.iters); i++ {
-
-		// if i == 1 {
-		// 	t.optimizeStorage()
-		// }
-
 		tres := t.Train()
-
 		if t.valid != nil {
 			vres := t.Validate()
 			log.Printf(TemplateTrainVal, i+1, tres.loss, vres.loss,
@@ -85,11 +79,9 @@ func (t *Trainer) Train() result {
 	njobs := runtime.NumCPU()
 	chunksize := dtrain.NRows() / uint64(njobs)
 
-	models := make([]FTRL, njobs)
 	stats := make([]result, njobs)
 	var wg sync.WaitGroup
 	for i := 0; i < njobs; i++ {
-		models[i] = t.model.Copy()
 
 		start := chunksize * uint64(i)
 		end := start + chunksize
@@ -99,40 +91,17 @@ func (t *Trainer) Train() result {
 
 		wg.Add(1)
 
-		go func(s uint64, e uint64, m *FTRL, stat *result, wg *sync.WaitGroup) {
+		go func(s uint64, e uint64, stat *result, wg *sync.WaitGroup) {
 			for j := s; j < e; j++ {
 				o := dtrain.Row(j)
-				ll := m.Fit(o)
+				ll := t.model.Fit(o)
 				stat.loss += ll
 				stat.wsum += o.W
 			}
 			wg.Done()
-		}(start, end, &models[i], &stats[i], &wg)
+		}(start, end, &stats[i], &wg)
 	}
 	wg.Wait()
-
-	// Merge weights of models
-	wmap := make(map[uint32]*weights)
-	ncols := uint32(dtrain.NCols())
-	var c uint32
-	for c = 0; c < ncols; c++ {
-		var newW weights
-		cnt := 1
-		for _, model := range models {
-			w, ok := model.weights[c]
-			if !ok {
-				continue
-			}
-			cnt++
-			newW.ni += w.ni
-			newW.zi += w.zi
-		}
-		newW.ni /= float64(cnt)
-		newW.zi /= float64(cnt)
-		newW.get(t.model.params)
-		wmap[c] = &newW
-	}
-	t.model.weights = wmap
 
 	var res result
 	for _, s := range stats {

@@ -2,6 +2,7 @@ package ftrl
 
 import (
 	"math"
+	"sync"
 
 	util "github.com/go-code/goFTRL/utils"
 )
@@ -12,6 +13,7 @@ type FTRL struct {
 	weights    map[uint32]*weights
 	params     Params
 	activation LinkFunction
+	mu         sync.Mutex
 }
 
 // MakeFTRL is fabric method for instance construction
@@ -62,9 +64,17 @@ func (a *FTRL) Predict(s Sample) float64 {
 	var v float64
 	for _, item := range s {
 		k, v = item.Key, item.Value
-		if w, ok = a.weights[k]; ok {
+
+		a.mu.Lock()
+		w, ok = a.weights[k]
+		a.mu.Unlock()
+		if ok {
 			p += w.get(a.params) * v
 		}
+
+		// if w, ok = a.weights[k]; ok {
+		// 	p += w.get(a.params) * v
+		// }
 	}
 	return a.activation(p)
 }
@@ -81,10 +91,21 @@ func (a *FTRL) Update(s Sample, p float64, y uint8, sampleW float64) {
 	for _, item := range s {
 		k, v = item.Key, item.Value
 
-		if w, ok = a.weights[k]; !ok {
+		a.mu.Lock()
+		w, ok = a.weights[k]
+		a.mu.Unlock()
+
+		if !ok {
 			w = &weights{}
+
+			a.mu.Lock()
 			a.weights[k] = w
+			a.mu.Unlock()
 		}
+		// if w, ok = a.weights[k]; !ok {
+		// 	w = &weights{}
+		// 	a.weights[k] = w
+		// }
 
 		zi, ni := w.zi, w.ni
 
