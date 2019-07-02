@@ -13,6 +13,7 @@ type weights struct {
 	ni float64 `json: "ni"`
 	zi float64 `json: "zi"`
 	wi float64 `json: "wi"`
+	mu Locker
 }
 
 func (w *weights) get(p Params) float64 {
@@ -30,9 +31,19 @@ func (w *weights) get(p Params) float64 {
 	den += p.lambda2
 
 	wi := num / den
+
+	w.mu.Lock()
 	w.wi = wi
-	
+	w.mu.Unlock()
+
 	return wi
+}
+
+func (w *weights) set(zi, ni float64) {
+	w.mu.Lock()
+	w.zi = zi
+	w.ni = ni
+	w.mu.Unlock()
 }
 
 func (w *weights) String() string {

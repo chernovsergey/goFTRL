@@ -4,6 +4,28 @@ import "math"
 
 const eps float64 = 1e-15
 
+func Sgn(a float64) float64 {
+	switch {
+	case a < 0.0:
+		return -1.0
+	case a > 0:
+		return +1.0
+	}
+	return 0.0
+}
+
+func Sigmoid(x float64) float64 {
+	return 1.0 / (1.0 + math.Exp(-x))
+}
+
+func Identity(x float64) float64 {
+	return x
+}
+
+func Exp(x float64) float64 {
+	return math.Exp(x)
+}
+
 func Logloss(p float64, y uint8, w float64) float64 {
 	p = math.Max(eps, math.Min(1-eps, p))
 	if y == 1 {

@@ -4,7 +4,6 @@ import (
 	"log"
 	"math"
 	"os"
-	"sync"
 	"text/tabwriter"
 
 	util "github.com/go-code/goFTRL/utils"
@@ -13,10 +12,9 @@ import (
 // FTRL is a structure for "Follow The Regularized Leader"
 // logistic regression algorithm
 type FTRL struct {
-	weights    map[uint32]*weights
+	weights    []*weights
 	params     Params
 	activation LinkFunction
-	mu         sync.RWMutex
 }
 
 // MakeFTRL is fabric method for instance construction
@@ -24,8 +22,7 @@ func MakeFTRL(p Params) *FTRL {
 
 	var f LinkFunction
 	if p.activation == 'b' {
-		f = util.SigmoidPiecewise
-		// f = util.Sigmoid
+		f = util.Sigmoid
 	} else if p.activation == 'g' {
 		f = util.Identity
 	} else if p.activation == 'p' {
@@ -35,7 +32,15 @@ func MakeFTRL(p Params) *FTRL {
 	return &FTRL{
 		params:     p,
 		activation: f,
-		weights:    make(map[uint32]*weights)}
+		weights:    make([]*weights, 0, 0),
+	}
+}
+
+func (a *FTRL) AllocWeightsStore(size uint64) {
+	if len(a.weights) != 0 {
+		panic("Ooops! Weights are already allocated")
+	}
+	a.weights = make([]*weights, size, size)
 }
 
 // FitStream fits model from stream
@@ -62,16 +67,18 @@ func (a *FTRL) Fit(o Observation) float64 {
 func (a *FTRL) Predict(s Sample) float64 {
 	var p float64
 	var w *weights
-	var ok bool
 	var k uint32
 	var v float64
+
+	numWeights := uint32(len(a.weights))
 	for _, item := range s {
 		k, v = item.Key, item.Value
 
-		a.mu.RLock()
-		w, ok = a.weights[k]
-		a.mu.RUnlock()
-		if ok {
+		if k >= numWeights {
+			continue
+		}
+		w = a.weights[k]
+		if w != nil {
 			p += w.get(a.params) * v
 		}
 	}
@@ -84,22 +91,15 @@ func (a *FTRL) Update(s Sample, p float64, y uint8, sampleW float64) {
 	g := util.Clip(sampleW*(p-float64(y)), a.params.clipgrad)
 
 	var w *weights
-	var ok bool
 	var k uint32
 	var v float64
 	for _, item := range s {
 		k, v = item.Key, item.Value
 
-		a.mu.RLock()
-		w, ok = a.weights[k]
-		a.mu.RUnlock()
-
-		if !ok {
+		w = a.weights[k]
+		if w == nil {
 			w = &weights{}
-
-			a.mu.Lock()
 			a.weights[k] = w
-			a.mu.Unlock()
 		}
 
 		zi, ni := w.zi, w.ni
@@ -112,12 +112,12 @@ func (a *FTRL) Update(s Sample, p float64, y uint8, sampleW float64) {
 		zi = zi + gi - sigma*wi
 		ni = ni + gi2
 
-		w.zi, w.ni = zi, ni
+		w.set(zi, ni)
 	}
 }
 
 func (a *FTRL) Copy() FTRL {
-	w := make(map[uint32]*weights)
+	w := make([]*weights, len(a.weights), cap(a.weights))
 	for k, v := range a.weights {
 		newW := *v
 		w[k] = &newW

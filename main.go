@@ -16,8 +16,6 @@ const (
 
 func main() {
 	// TODO add flag if to read binary dataset
-	// TODO add flag read fixed number of rows
-	// TODO enable profile if flag set
 	// TODO add model serialization/deserialization
 	// TODO add warmstart
 
@@ -40,7 +38,6 @@ func main() {
 	clip := flag.Float64("-clip", 1000.0, "gradient clip value")
 	tol := flag.Float64("-tol", 1e-4, "tolerance")
 
-	// usecache := flag.Bool("-cache", true, "use dataset caching")
 	nEpoch := flag.Uint64("-e", 20, "number of epochs to train")
 	bench := flag.Bool("-pprof", false, "enable profiling")
 

@@ -40,22 +40,14 @@ func NewTrainer(model *FTRL, trainStream *DataReader, valStream *DataReader,
 	}
 }
 
-func (t *Trainer) optimizeStorage() {
-	// switch t.model.weights.(type) {
-	// case *WeightMap:
-	// 	ts := time.Now()
-	// 	t.model.weights = MakeWeightArray(t.model.weights.(*WeightMap))
-	// 	t.optimized = true
-	// 	log.Println("weights store = array", time.Since(ts))
-	// }
-}
-
 func (t *Trainer) Run() {
 
 	t0 := time.Now()
 	t.train.Read()
 	t.valid.Read()
 	log.Println("Read dataset in ", time.Since(t0))
+
+	t.model.AllocWeightsStore(t.train.cache.NCols() + 1)
 
 	t0 = time.Now()
 	for i := 0; i < int(t.iters); i++ {
@@ -80,6 +72,7 @@ func (t *Trainer) Train() result {
 	chunksize := dtrain.NRows() / uint64(njobs)
 
 	stats := make([]result, njobs)
+
 	var wg sync.WaitGroup
 	for i := 0; i < njobs; i++ {
 
