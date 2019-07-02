@@ -1,8 +1,11 @@
 package ftrl
 
 import (
+	"log"
 	"math"
+	"os"
 	"sync"
+	"text/tabwriter"
 
 	util "github.com/go-code/goFTRL/utils"
 )
@@ -13,7 +16,7 @@ type FTRL struct {
 	weights    map[uint32]*weights
 	params     Params
 	activation LinkFunction
-	mu         sync.Mutex
+	mu         sync.RWMutex
 }
 
 // MakeFTRL is fabric method for instance construction
@@ -65,16 +68,12 @@ func (a *FTRL) Predict(s Sample) float64 {
 	for _, item := range s {
 		k, v = item.Key, item.Value
 
-		a.mu.Lock()
+		a.mu.RLock()
 		w, ok = a.weights[k]
-		a.mu.Unlock()
+		a.mu.RUnlock()
 		if ok {
 			p += w.get(a.params) * v
 		}
-
-		// if w, ok = a.weights[k]; ok {
-		// 	p += w.get(a.params) * v
-		// }
 	}
 	return a.activation(p)
 }
@@ -91,9 +90,9 @@ func (a *FTRL) Update(s Sample, p float64, y uint8, sampleW float64) {
 	for _, item := range s {
 		k, v = item.Key, item.Value
 
-		a.mu.Lock()
+		a.mu.RLock()
 		w, ok = a.weights[k]
-		a.mu.Unlock()
+		a.mu.RUnlock()
 
 		if !ok {
 			w = &weights{}
@@ -102,10 +101,6 @@ func (a *FTRL) Update(s Sample, p float64, y uint8, sampleW float64) {
 			a.weights[k] = w
 			a.mu.Unlock()
 		}
-		// if w, ok = a.weights[k]; !ok {
-		// 	w = &weights{}
-		// 	a.weights[k] = w
-		// }
 
 		zi, ni := w.zi, w.ni
 
@@ -138,18 +133,29 @@ func (a *FTRL) Copy() FTRL {
 
 // DecisionSummary prints learned weights summary
 func (a *FTRL) DecisionSummary() {
-	// wcount := a.weights.Size()
-	// wnonzero, wmin, wmax := a.weights.Summary()
 
-	// w := tabwriter.NewWriter(os.Stdout, 0, 0, 3, ' ', 0)
-	// log.SetOutput(w)
-	// log.Println()
-	// log.Println("Decision summary\t:::::")
-	// log.Println("-----\t-----")
-	// log.Println(&a.params)
-	// log.Printf("weights count\t%v", wcount)
-	// log.Printf("count nonzero\t%v", wnonzero)
-	// log.Printf("min weight\t%v", wmin)
-	// log.Printf("max weight\t%v", wmax)
-	// w.Flush()
+	var nnzCount uint32
+	var min, max float64
+	for _, w := range a.weights {
+		if w == nil {
+			continue
+		}
+		if w.wi != 0.0 {
+			nnzCount++
+		}
+		min = math.Min(min, w.wi)
+		max = math.Max(max, w.wi)
+	}
+
+	w := tabwriter.NewWriter(os.Stdout, 0, 0, 3, ' ', 0)
+	log.SetOutput(w)
+	log.Println()
+	log.Println("Decision summary\t:::::")
+	log.Println("-----\t-----")
+	log.Println(&a.params)
+	log.Printf("weights count\t%v", len(a.weights))
+	log.Printf("count nonzero\t%v", nnzCount)
+	log.Printf("min weight\t%v", min)
+	log.Printf("max weight\t%v", max)
+	w.Flush()
 }
