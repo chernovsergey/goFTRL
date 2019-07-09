@@ -48,7 +48,7 @@ type FTRL struct {
 }
 
 // MakeFTRL is fabric method for instance construction
-func MakeFTRL(p Params) *FTRL {
+func MakeFTRL(p Params, warmstart string) *FTRL {
 
 	var f LinkFunction
 	if p.activation == 'b' {
@@ -148,6 +148,23 @@ func (a *FTRL) Copy() FTRL {
 	}
 
 	return cp
+}
+
+func (a *FTRL) Save(path string) {
+
+	f, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE, 0666)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer f.Close()
+	for idx, w := range a.weights {
+		if w == nil {
+			f.WriteString(fmt.Sprintf("%d:%f\n", idx, float64(0.0)))
+			continue
+		}
+		f.WriteString(fmt.Sprintf("%d:%f\n", idx, w.wi))
+	}
+	log.Println("Saved model to file:", path)
 }
 
 // DecisionSummary prints learned weights summary

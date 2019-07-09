@@ -15,7 +15,6 @@ const (
 )
 
 func main() {
-	// TODO add flag if to read binary dataset
 	// TODO add model serialization/deserialization
 	// TODO add warmstart
 
@@ -40,6 +39,8 @@ func main() {
 
 	nEpoch := flag.Uint64("-e", 10, "number of epochs to train")
 	bench := flag.Bool("-pprof", false, "enable profiling")
+	modelfile := flag.String("-model", "trained.model", "Path for saving model")
+	warmstart := flag.String("-warm", "trained.model", "Path to saved model")
 
 	flag.Parse()
 
@@ -76,7 +77,7 @@ func main() {
 		*clip, 0.0, *tol,
 		*nEpoch, 'b')
 
-	logreg := ftrl.MakeFTRL(params)
+	logreg := ftrl.MakeFTRL(params, *warmstart)
 
 	dtrain := ftrl.NewDataReader(*train, *trainW, *trainF, uint32(*trainA), uint32(*trainR))
 	dvalid := ftrl.NewDataReader(*valid, *validW, *validF, uint32(*validA), uint32(*validR))
@@ -84,4 +85,8 @@ func main() {
 	trainer := ftrl.NewTrainer(logreg, dtrain, dvalid, uint32(*nEpoch))
 	trainer.Run()
 	trainer.PrintSummary()
+
+	if *modelfile != "" {
+		logreg.Save(*modelfile)
+	}
 }
