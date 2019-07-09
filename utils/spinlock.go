@@ -1,4 +1,4 @@
-package ftrl
+package utils
 
 import (
 	"runtime"

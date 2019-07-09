@@ -9,7 +9,7 @@ type DataReader struct {
 	weights  string
 	colnames string
 
-	cache   *DatasetSparse
+	cache   *Dataset
 	maxrows uint32
 }
 
@@ -45,6 +45,6 @@ func (s *DataReader) Read() {
 	}
 }
 
-func (s *DataReader) GetData() *DatasetSparse {
+func (s *DataReader) GetData() *Dataset {
 	return s.cache
 }

@@ -38,7 +38,7 @@ func main() {
 	clip := flag.Float64("-clip", 1000.0, "gradient clip value")
 	tol := flag.Float64("-tol", 1e-4, "tolerance")
 
-	nEpoch := flag.Uint64("-e", 20, "number of epochs to train")
+	nEpoch := flag.Uint64("-e", 10, "number of epochs to train")
 	bench := flag.Bool("-pprof", false, "enable profiling")
 
 	flag.Parse()

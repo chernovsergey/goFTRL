@@ -6,7 +6,7 @@ import (
 	"text/tabwriter"
 )
 
-type DatasetSparse struct {
+type Dataset struct {
 	data      []Observation
 	weightSum float64
 	ncols     uint64
@@ -14,13 +14,13 @@ type DatasetSparse struct {
 }
 
 //
-func MakeDataset(capacity uint32) *DatasetSparse {
-	return &DatasetSparse{
+func MakeDataset(capacity uint32) *Dataset {
+	return &Dataset{
 		data: make([]Observation, 0, capacity)}
 }
 
 // Add adds new element
-func (d *DatasetSparse) Add(o Observation) {
+func (d *Dataset) Add(o Observation) {
 	d.data = append(d.data, o)
 
 	// auxilary step
@@ -35,42 +35,42 @@ func (d *DatasetSparse) Add(o Observation) {
 }
 
 // Row returns elements of ith row of dataset in sparse format
-func (d *DatasetSparse) Row(ith uint64) Observation {
+func (d *Dataset) Row(ith uint64) Observation {
 	return d.data[ith]
 }
 
 // Label returns ith element of label vector
-func (d *DatasetSparse) Label(ith uint64) uint8 {
+func (d *Dataset) Label(ith uint64) uint8 {
 	return d.data[ith].Y
 }
 
 // SampleWeight returns ith element of sample weight vector
-func (d *DatasetSparse) SampleWeight(ith uint64) float64 {
+func (d *Dataset) SampleWeight(ith uint64) float64 {
 	return d.data[ith].W
 }
 
 // WeightsSum return sum of weights of sample if dataset is weighted
 // otherwise returns number of rows suppose each sample weight equals to 1
-func (d *DatasetSparse) WeightsSum() float64 {
+func (d *Dataset) WeightsSum() float64 {
 	return d.weightSum
 }
 
 // Nnz returns numer of stored values
-func (d *DatasetSparse) Nnz() uint64 {
+func (d *Dataset) Nnz() uint64 {
 	return d.nnz
 }
 
 // NRows return number of stored rows
-func (d *DatasetSparse) NRows() uint64 {
+func (d *Dataset) NRows() uint64 {
 	return uint64(len(d.data))
 }
 
 // NCols return number of stored cols
-func (d *DatasetSparse) NCols() uint64 {
+func (d *Dataset) NCols() uint64 {
 	return d.ncols
 }
 
-func (d *DatasetSparse) String() string {
+func (d *Dataset) String() string {
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 3, ' ', 0)
 	log.SetOutput(w)
 	log.Println()
