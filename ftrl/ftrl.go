@@ -81,7 +81,7 @@ func (a *FTRL) Fit(o Observation) float64 {
 	return util.Logloss(p, y, sampleW)
 }
 
-// Predict return probability estimation of positive outcome
+// Predict returns probability estimation of positive outcome
 // for given sample
 func (a *FTRL) Predict(s Sample) float64 {
 	var p float64
@@ -102,6 +102,25 @@ func (a *FTRL) Predict(s Sample) float64 {
 		}
 	}
 	return a.activation(p)
+}
+
+// EstimateUCB estimates upper confidence bound of prediction
+// for given sample
+func (a *FTRL) EstimateUCB(s Sample) float64 {
+	var ub float64
+	numWeights := uint32(len(a.weights))
+	for _, item := range s {
+		k, v := item.Key, item.Value
+		if k >= numWeights {
+			continue
+		}
+		w := a.weights[k]
+		if w != nil {
+			ub += v / math.Sqrt(w.ni)
+		}
+	}
+
+	return a.params.alpha * ub
 }
 
 // Update updates weights of given sample features
