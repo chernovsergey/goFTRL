@@ -169,19 +169,21 @@ func (a *FTRL) Copy() FTRL {
 	return cp
 }
 
-func (a *FTRL) Save(path string) {
+func (a *FTRL) Save(path string, nfeatures uint64) {
 
 	f, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE, 0666)
 	if err != nil {
 		log.Fatal(err)
 	}
 	defer f.Close()
-	for idx, w := range a.weights {
+	var key uint64
+	for key = 0; key < nfeatures; key++ {
+		w := a.weights[key]
 		if w == nil {
-			f.WriteString(fmt.Sprintf("%d:%f\n", idx, float64(0.0)))
+			f.WriteString(fmt.Sprintf("%d:%s:%f\n", key, "", float64(0.0)))
 			continue
 		}
-		f.WriteString(fmt.Sprintf("%d:%f\n", idx, w.wi))
+		f.WriteString(fmt.Sprintf("%d:%s:%f\n", key, "", w.wi))
 	}
 	log.Println("Saved model to file:", path)
 }

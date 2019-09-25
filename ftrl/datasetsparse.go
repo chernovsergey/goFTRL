@@ -7,10 +7,11 @@ import (
 )
 
 type Dataset struct {
-	data      []Observation
-	weightSum float64
-	ncols     uint64
-	nnz       uint64
+	data         []Observation
+	weightSum    float64
+	ncols        uint64
+	nnz          uint64
+	featurenames []string
 }
 
 //

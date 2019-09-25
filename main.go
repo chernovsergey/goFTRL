@@ -11,22 +11,38 @@ import (
 )
 
 const (
-	pProf = "bench.pprof"
+	pProf    = "bench.pprof"
+	pTrace   = "bench.trace"
+	pProfMem = "bench.mem.pprof"
+
+	filesFolder = "./files"
+
+	// Small dataset files
+	smallDF = filesFolder + "/dataset_small"
+	train   = smallDF + "/train_dataset.svm"
+	trainW  = smallDF + "/weights_train.csv"
+	trainF  = smallDF + "/feature_names.csv"
+
+	valid  = smallDF + "/valid_dataset.svm"
+	validW = smallDF + "/weights_valid.csv"
+	validF = smallDF + "/feature_names.csv"
+
+	modelName = "trainded.moldel"
 )
 
 func main() {
 	// TODO add model serialization/deserialization
 	// TODO add warmstart
-
-	train := flag.String("-t", "./files/train_dataset.svm", "Path to TRAIN data")
-	trainW := flag.String("-tw", "./files/weights_train.csv", "Path to TRAIN weights file")
-	trainF := flag.String("-tf", "", "Path to TRAIN feature names")
-	trainR := flag.Int("-tnrows", -1, "Use at most N rows of TRAIN dataset")
+	log.Println()
+	train := flag.String("-t", train, "Path to TRAIN data")
+	trainW := flag.String("-tw", trainW, "Path to TRAIN sample weights")
+	trainF := flag.String("-tf", trainF, "Path to TRAIN feature names")
+	trainR := flag.Int("-tnrows", -1, "Use at most N rows of TRAIN dataset. Below zerof")
 	trainA := flag.Int("-talloc", 9500000, "Preallocate memory for N train observations")
 
-	valid := flag.String("-v", "./files/valid_dataset.svm", "path to VALID data")
-	validW := flag.String("-vw", "./files/weights_valid.csv", "path to VALID weights file")
-	validF := flag.String("-vf", "", "path to VALID feature names")
+	valid := flag.String("-v", valid, "path to VALID data")
+	validW := flag.String("-vw", validW, "path to VALID weights file")
+	validF := flag.String("-vf", validF, "path to VALID feature names")
 	validR := flag.Int("-vnrows", -1, "Use at most N rows of VALID dataset")
 	validA := flag.Int("-valloc", 5000000, "Preallocate memory for N validation observations")
 
@@ -39,8 +55,8 @@ func main() {
 
 	nEpoch := flag.Uint64("-e", 10, "number of epochs to train")
 	bench := flag.Bool("-pprof", false, "enable profiling")
-	modelfile := flag.String("-model", "trained.model", "Path for saving model")
-	warmstart := flag.String("-warm", "trained.model", "Path to saved model")
+	modelfile := flag.String("-model", modelName, "Path for saving model")
+	warmstart := flag.String("-warm", modelName, "Path to saved model")
 
 	flag.Parse()
 
@@ -49,19 +65,19 @@ func main() {
 	if *bench {
 		log.Println("pprof enabled!")
 
-		cpuprof, err = os.Create("bench.pprof")
+		cpuprof, err = os.Create(pProf)
 		if err != nil {
 			log.Fatal("could not create CPU profile: ", err)
 		}
 		pprof.StartCPUProfile(cpuprof)
 
-		traceprof, err = os.Create("bench.trace")
+		traceprof, err = os.Create(pTrace)
 		if err != nil {
 			log.Fatal("could not create TRACE profile: ", err)
 		}
 		trace.Start(traceprof)
 
-		memprof, err = os.Create("bench.mem.pprof")
+		memprof, err = os.Create(pProfMem)
 		if err != nil {
 			log.Fatal("could not create MEM profile: ", err)
 		}
@@ -87,6 +103,6 @@ func main() {
 	trainer.PrintSummary()
 
 	if *modelfile != "" {
-		logreg.Save(*modelfile)
+		logreg.Save(*modelfile, dtrain.GetData().NCols())
 	}
 }
