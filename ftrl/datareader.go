@@ -1,6 +1,9 @@
 package ftrl
 
 import (
+	"bufio"
+	"log"
+	"os"
 	"runtime"
 )
 
@@ -42,6 +45,17 @@ func (s *DataReader) Read() {
 	go r.Read(ch)
 	for o := range ch {
 		s.cache.Add(o)
+	}
+
+	f, err := os.Open(s.colnames)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer f.Close()
+
+	scanner := bufio.NewScanner(f)
+	for scanner.Scan() {
+		s.cache.featurenames = append(s.cache.featurenames, scanner.Text())
 	}
 }
 

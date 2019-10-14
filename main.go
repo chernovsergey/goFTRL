@@ -18,16 +18,16 @@ const (
 	filesFolder = "./files"
 
 	// Small dataset files
-	smallDF = filesFolder + "/dataset_small"
+	smallDF = filesFolder + "/dataset_test"
 	train   = smallDF + "/train_dataset.svm"
-	trainW  = smallDF + "/weights_train.csv"
+	trainW  = smallDF + "/train_weights.csv"
 	trainF  = smallDF + "/feature_names.csv"
 
 	valid  = smallDF + "/valid_dataset.svm"
-	validW = smallDF + "/weights_valid.csv"
+	validW = smallDF + "/valid_weights.csv"
 	validF = smallDF + "/feature_names.csv"
 
-	modelName = "trainded.moldel"
+	modelName = "trained.model"
 )
 
 func main() {
@@ -101,8 +101,7 @@ func main() {
 	trainer := ftrl.NewTrainer(logreg, dtrain, dvalid, uint32(*nEpoch))
 	trainer.Run()
 	trainer.PrintSummary()
-
 	if *modelfile != "" {
-		logreg.Save(*modelfile, dtrain.GetData().NCols())
+		trainer.SaveModel(*modelfile)
 	}
 }

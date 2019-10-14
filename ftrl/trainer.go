@@ -1,7 +1,9 @@
 package ftrl
 
 import (
+	"fmt"
 	"log"
+	"os"
 	"runtime"
 	"sync"
 	"time"
@@ -149,6 +151,28 @@ func (t *Trainer) Validate() result {
 	res.etime = time.Since(t0)
 
 	return res
+}
+
+func (t *Trainer) SaveModel(path string) {
+
+	f, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE, 0666)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer f.Close()
+
+	fnames := t.train.cache.FeatureNames()
+	ncoefs := t.train.cache.NCols()
+
+	var key uint64
+	for key = 0; key < ncoefs; key++ {
+		w := t.model.weights[key]
+		name := fnames[key]
+		if w != nil {
+			f.WriteString(fmt.Sprintf("%d:%s:%f\n", key, name, w.wi))
+		}
+	}
+	log.Println("Saved model to file:", path)
 }
 
 func (t *Trainer) PrintSummary() {

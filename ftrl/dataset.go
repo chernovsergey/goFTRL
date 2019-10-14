@@ -17,7 +17,8 @@ type Dataset struct {
 //
 func MakeDataset(capacity uint32) *Dataset {
 	return &Dataset{
-		data: make([]Observation, 0, capacity)}
+		data:         make([]Observation, 0, capacity),
+		featurenames: make([]string, 0)}
 }
 
 // Add adds new element
@@ -69,6 +70,11 @@ func (d *Dataset) NRows() uint64 {
 // NCols return number of stored cols
 func (d *Dataset) NCols() uint64 {
 	return d.ncols
+}
+
+// FeatureNames returns names of features
+func (d *Dataset) FeatureNames() []string {
+	return d.featurenames
 }
 
 func (d *Dataset) String() string {
